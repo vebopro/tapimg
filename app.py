@@ -2,64 +2,63 @@
 from PIL import Image
 import io
 
-st.title("タップで変わる画像作成ツール🖤")
-st.write("2000ピクセル以上、1枚目と2枚目は同じ縦横サイズにしてね。")
+st.title("タップで変わる！ガチ勢向けツール🖤")
+st.write("アンチエイリアスを排除して、SNSの圧縮を逆手に取る設定なのだ。")
+
+# 設定[cite: 1, 2]
+st.sidebar.header("詳細設定")
+density = st.sidebar.slider("ドットの間隔 (大きいほど隠し絵が薄くなる)", 2, 8, 2)
+# 1/density の確率でドットを残す仕組みにするのだ
 
 col1, col2 = st.columns(2)
 with col1:
-    uploaded_file1 = st.file_uploader("1枚目：隠したい画像（Base）", type=["png", "jpg", "jpeg"])
+    uploaded_file1 = st.file_uploader("1枚目：隠したい画像", type=["png", "jpg", "jpeg"])
 with col2:
-    uploaded_file2 = st.file_uploader("2枚目：上に重ねる透過PNG（Tap Layer）", type=["png"])
+    uploaded_file2 = st.file_uploader("2枚目：常に表示する透過PNG", type=["png"])
 
 if uploaded_file1 is not None and uploaded_file2 is not None:
     # 画像読み込み
     img1 = Image.open(uploaded_file1).convert("RGBA")
     img2 = Image.open(uploaded_file2).convert("RGBA")
 
+    # ★重要：リサイズは必ず NEAREST（Nearest Neighbor）を使うのだ
     width, height = img1.size
-    img2 = img2.resize((width, height), Image.Resampling.LANCZOS)
+    img2 = img2.resize((width, height), Image.Resampling.NEAREST)
 
     output_image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels1 = img1.load()
     pixels2 = img2.load()
     output_pixels = output_image.load()
 
-    # ==================== 成功例に近い処理 ====================
+    # 合成ロジック
     for y in range(height):
         for x in range(width):
             r2, g2, b2, a2 = pixels2[x, y]
             
-            if a2 > 5:  # 2枚目の不透明部分を優先
-                output_pixels[x, y] = (r2, g2, b2, a2)
+            # 2枚目に絵がある（不透明）なら優先
+            if a2 > 128: # 念のため中間的な透過もカット
+                output_pixels[x, y] = (r2, g2, b2, 255)
             else:
-                # 1px市松模様で極端に間引く（これが重要！）
-                if (x % 2 == 0) and (y % 2 == 0):   # 1px checkerboard（25%だけ残す）
-                    r1, g1, b1, a1 = pixels1[x, y]
-                    # alphaをかなり低く（バレにくくするため）
-                    hidden_a = int(a1 * 0.18) if a1 > 0 else 0
-                    output_pixels[x, y] = (r1, g1, b1, hidden_a)
+                # 1枚目をドット状に配置[cite: 2]
+                if (x % density == 0) and (y % density == 0):
+                    output_pixels[x, y] = pixels1[x, y]
                 else:
                     output_pixels[x, y] = (0, 0, 0, 0)
-    # =======================================================
 
-    # PNG-8（256色）に変換（ditheringを強く）
-    quantized_image = output_image.quantize(
-        colors=256, 
-        method=2,      # dithering強化
-        dither=1       # Floyd-Steinberg dither
-    )
+    # インデックス256色化（8ビット透過PNG用）
+    # 自前でパレット制御するのは大変だから、最良のアルゴリズムで減色
+    quantized_image = output_image.convert("P", palette=Image.Palette.ADAPTIVE, colors=256)
 
-    st.image(quantized_image, caption="合成完了なのだ🖤", use_container_width=True)
+    st.image(quantized_image, caption="合成完了（Nearest補正済み）なのだ🖤", use_container_width=True)
 
-    # ダウンロード
     buf = io.BytesIO()
+    # 透過情報を維持して保存
     quantized_image.save(buf, format="PNG", optimize=True)
     st.download_button(
-        label="8ビット合成画像を保存する",
+        label="ガチ仕様で保存する",
         data=buf.getvalue(),
-        file_name="tap_reveal.png",
+        file_name="tap_reveal_strict.png",
         mime="image/png"
     )
-
 else:
-    st.info("画像を2枚アップロードしてね。最後は自動で8ビット化されるのだ( ˙-˙ )")
+    st.info("チュートリアル通り、高解像度の画像を使うとさらに成功率が上がるよ。")
