@@ -24,34 +24,39 @@ if uploaded_file1 is not None and uploaded_file2 is not None:
     pixels2 = img2.load()
     output_pixels = output_image.load()
 
-    # 合成ロジック（さっきと同じ）
+    # ====================== おすすめ設定 ======================
+    HIDDEN_STRENGTH = 0.28   # 0.20〜0.35の間で調整してください
+    # =========================================================
+
     for y in range(height):
         for x in range(width):
             r2, g2, b2, a2 = pixels2[x, y]
             
-            if a2 > 0:
+            if a2 > 10:  # 2枚目の不透明部分をしっかり優先
                 output_pixels[x, y] = (r2, g2, b2, a2)
             else:
-                if (x + y) % 2 == 0:
-                    output_pixels[x, y] = pixels1[x, y]
+                if (x + y) % 2 == 0:                    # チェッカーボード
+                    r1, g1, b1, a1 = pixels1[x, y]
+                    hidden_a = int(a1 * HIDDEN_STRENGTH)
+                    output_pixels[x, y] = (r1, g1, b1, hidden_a)
                 else:
                     output_pixels[x, y] = (0, 0, 0, 0)
 
-    # ★ここが追加部分なのだ★
-    # RGBA画像を256色のインデックスカラー（8ビット）に減色する
-    quantized_image = output_image.quantize(colors=256)
+    # 256色に減色（dithering強化）
+    quantized_image = output_image.quantize(colors=256, method=2)
 
-    # 画面には減色後のものを表示
+    # 画面表示
     st.image(quantized_image, caption="合成完了なのだ🖤", use_container_width=True)
 
-    # ダウンロード（保存も8ビットPNGになるよ）
+    # ダウンロード
     buf = io.BytesIO()
-    quantized_image.save(buf, format="PNG")
+    quantized_image.save(buf, format="PNG", optimize=True)
     st.download_button(
         label="8ビット合成画像を保存する",
         data=buf.getvalue(),
         file_name="8bit_tap_reveal.png",
         mime="image/png"
     )
+
 else:
     st.info("画像を2枚アップロードしてね。最後は自動で8ビット化されるのだ( ˙-˙ )")
