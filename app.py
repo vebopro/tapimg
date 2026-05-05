@@ -7,45 +7,48 @@ st.write("2000ピクセル以上、1枚目と2枚目は同じ縦横サイズに�
 
 col1, col2 = st.columns(2)
 with col1:
-    uploaded_file1 = st.file_uploader("1枚目：隠したい画像（JPG/PNG）", type=["png", "jpg", "jpeg"])
+    uploaded_file1 = st.file_uploader("1枚目：隠したい画像（Base）", type=["png", "jpg", "jpeg"])
 with col2:
-    uploaded_file2 = st.file_uploader("2枚目：上に重ねる透過PNG", type=["png"])
+    uploaded_file2 = st.file_uploader("2枚目：上に重ねる透過PNG（Tap Layer）", type=["png"])
 
 if uploaded_file1 is not None and uploaded_file2 is not None:
+    # 画像読み込み
     img1 = Image.open(uploaded_file1).convert("RGBA")
     img2 = Image.open(uploaded_file2).convert("RGBA")
 
     width, height = img1.size
     img2 = img2.resize((width, height), Image.Resampling.LANCZOS)
 
-    # 結果用の透明キャンバス
     output_image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels1 = img1.load()
     pixels2 = img2.load()
     output_pixels = output_image.load()
 
-    # ====================== おすすめ設定 ======================
-    HIDDEN_STRENGTH = 0.28   # 0.20〜0.35の間で調整してください
-    # =========================================================
-
+    # ==================== 成功例に近い処理 ====================
     for y in range(height):
         for x in range(width):
             r2, g2, b2, a2 = pixels2[x, y]
             
-            if a2 > 10:  # 2枚目の不透明部分をしっかり優先
+            if a2 > 5:  # 2枚目の不透明部分を優先
                 output_pixels[x, y] = (r2, g2, b2, a2)
             else:
-                if (x + y) % 2 == 0:                    # チェッカーボード
+                # 1px市松模様で極端に間引く（これが重要！）
+                if (x % 2 == 0) and (y % 2 == 0):   # 1px checkerboard（25%だけ残す）
                     r1, g1, b1, a1 = pixels1[x, y]
-                    hidden_a = int(a1 * HIDDEN_STRENGTH)
+                    # alphaをかなり低く（バレにくくするため）
+                    hidden_a = int(a1 * 0.18) if a1 > 0 else 0
                     output_pixels[x, y] = (r1, g1, b1, hidden_a)
                 else:
                     output_pixels[x, y] = (0, 0, 0, 0)
+    # =======================================================
 
-    # 256色に減色（dithering強化）
-    quantized_image = output_image.quantize(colors=256, method=2)
+    # PNG-8（256色）に変換（ditheringを強く）
+    quantized_image = output_image.quantize(
+        colors=256, 
+        method=2,      # dithering強化
+        dither=1       # Floyd-Steinberg dither
+    )
 
-    # 画面表示
     st.image(quantized_image, caption="合成完了なのだ🖤", use_container_width=True)
 
     # ダウンロード
@@ -54,7 +57,7 @@ if uploaded_file1 is not None and uploaded_file2 is not None:
     st.download_button(
         label="8ビット合成画像を保存する",
         data=buf.getvalue(),
-        file_name="8bit_tap_reveal.png",
+        file_name="tap_reveal.png",
         mime="image/png"
     )
 
