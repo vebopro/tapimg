@@ -2,13 +2,11 @@
 from PIL import Image
 import io
 
-st.title("タップで変わる！ガチ勢向けツール🖤")
-st.write("アンチエイリアスを排除して、SNSの圧縮を逆手に取る設定なのだ。")
+st.title("タップで変わる！ドット極小版🖤")
 
-# 設定[cite: 1, 2]
-st.sidebar.header("詳細設定")
-density = st.sidebar.slider("ドットの間隔 (大きいほど隠し絵が薄くなる)", 2, 8, 2)
-# 1/density の確率でドットを残す仕組みにするのだ
+# densityを2にすると今の「デカい格子」になるから、1固定か細かい調整にする
+# 解像度ブースト機能を追加
+upscale = st.sidebar.checkbox("解像度を2倍にしてドットを細かくする", value=True)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -17,11 +15,14 @@ with col2:
     uploaded_file2 = st.file_uploader("2枚目：常に表示する透過PNG", type=["png"])
 
 if uploaded_file1 is not None and uploaded_file2 is not None:
-    # 画像読み込み
     img1 = Image.open(uploaded_file1).convert("RGBA")
     img2 = Image.open(uploaded_file2).convert("RGBA")
 
-    # ★重要：リサイズは必ず NEAREST（Nearest Neighbor）を使うのだ
+    # もし画像が小さいなら強制的に拡大してドットを細かく見せる
+    if upscale:
+        new_size = (img1.width * 2, img1.height * 2)
+        img1 = img1.resize(new_size, Image.Resampling.NEAREST)
+    
     width, height = img1.size
     img2 = img2.resize((width, height), Image.Resampling.NEAREST)
 
@@ -30,35 +31,28 @@ if uploaded_file1 is not None and uploaded_file2 is not None:
     pixels2 = img2.load()
     output_pixels = output_image.load()
 
-    # 合成ロジック
     for y in range(height):
         for x in range(width):
             r2, g2, b2, a2 = pixels2[x, y]
-            
-            # 2枚目に絵がある（不透明）なら優先
-            if a2 > 128: # 念のため中間的な透過もカット
+            if a2 > 128:
                 output_pixels[x, y] = (r2, g2, b2, 255)
             else:
-                # 1枚目をドット状に配置[cite: 2]
-                if (x % density == 0) and (y % density == 0):
+                # 最小単位（1ピクセル）で交互に配置する
+                if (x + y) % 2 == 0:
                     output_pixels[x, y] = pixels1[x, y]
                 else:
                     output_pixels[x, y] = (0, 0, 0, 0)
 
-    # インデックス256色化（8ビット透過PNG用）
-    # 自前でパレット制御するのは大変だから、最良のアルゴリズムで減色
+    # 8ビット化
     quantized_image = output_image.convert("P", palette=Image.Palette.ADAPTIVE, colors=256)
 
-    st.image(quantized_image, caption="合成完了（Nearest補正済み）なのだ🖤", use_container_width=True)
+    st.image(quantized_image, caption="ドットを極限まで細かくしたのだ🖤", use_container_width=True)
 
     buf = io.BytesIO()
-    # 透過情報を維持して保存
     quantized_image.save(buf, format="PNG", optimize=True)
     st.download_button(
-        label="ガチ仕様で保存する",
+        label="極小ドット版を保存する",
         data=buf.getvalue(),
-        file_name="tap_reveal_strict.png",
+        file_name="ultra_fine_dot.png",
         mime="image/png"
     )
-else:
-    st.info("チュートリアル通り、高解像度の画像を使うとさらに成功率が上がるよ。")
