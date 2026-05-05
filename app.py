@@ -2,15 +2,15 @@
 from PIL import Image
 import io
 
-st.title("タップで変わる！X（Twitter）完全最適化版🖤")
-st.write("2000pxでも綺麗に消える、アンチエイリアス完全排除モデルなのだ。")
+st.title("タップで変わるX画像作成ツール🖤")
+st.write("2000px以上、同じピクセルサイズの２枚の画像を用意してね　")
 
 # 輝度調整のスライダー（ここが成功の鍵かも）
-brightness = st.sidebar.slider("下絵の明るさ補正 (低いほどプレビューで隠れる)", 0.1, 1.0, 0.7)
+brightness = st.sidebar.slider("下絵の明るさ補正 (通常は1.0)", 0.1, 1.0, 0.7)
 
 col1, col2 = st.columns(2)
 with col1:
-    uploaded_file1 = st.file_uploader("1枚目：隠したい画像", type=["png", "jpg", "jpeg"])
+    uploaded_file1 = st.file_uploader("1枚目：隠したい画像（JPG/PNG）", type=["png", "jpg", "jpeg"])
 with col2:
     uploaded_file2 = st.file_uploader("2枚目：常に表示する透過PNG", type=["png"])
 
@@ -48,13 +48,13 @@ if uploaded_file1 is not None and uploaded_file2 is not None:
     # dither=Image.Dither.NONE を指定して中間色を一切作らせない[cite: 2]
     quantized_image = output_image.convert("P", palette=Image.Palette.ADAPTIVE, colors=256, dither=Image.Dither.NONE)
 
-    st.image(quantized_image, caption="2000pxでもパキパキなのだ🖤", use_container_width=True)
+    st.image(quantized_image, caption="合成完了なのだ🖤", use_container_width=True)
 
     buf = io.BytesIO()
     # 透過PNGとして保存。これならXのプレビューを騙せるはず。[cite: 2]
     quantized_image.save(buf, format="PNG", optimize=True)
     st.download_button(
-        label="X（Twitter）向けに保存する",
+        label="画像を保存する",
         data=buf.getvalue(),
         file_name="x_optimized_tap.png",
         mime="image/png"
