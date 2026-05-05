@@ -6,7 +6,7 @@ st.title("タップで変わるX画像作成ツール🖤")
 st.write("2000px以上、同じピクセルサイズの２枚の画像を用意してね　")
 
 # 輝度調整のスライダー（ここが成功の鍵かも）
-brightness = st.sidebar.slider("下絵の明るさ補正 (通常は1.0)", 0.1, 1.0, 0.7)
+brightness = st.sidebar.slider("下絵の明るさ補正 (通常は1.0)", 0.1, 1.0, 1.0)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -60,4 +60,4 @@ if uploaded_file1 is not None and uploaded_file2 is not None:
         mime="image/png"
     )
 else:
-    st.info("成功例に近づけるには、左の明るさ補正を少し下げてみてね。")
+    st.info("2枚の画像をアップロードすると自動で処理が始まります。画像はサーバーに保存されません")
